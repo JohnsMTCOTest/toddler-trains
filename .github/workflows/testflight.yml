@@ -39,6 +39,16 @@ jobs:
           platform :ios do
             desc "Build and upload to TestFlight"
             lane :beta do
+              # Create a temporary keychain for CI signing
+              create_keychain(
+                name: "ci_keychain",
+                password: "temporary_password",
+                default_keychain: true,
+                unlock: true,
+                timeout: 3600,
+                lock_when_sleeps: false
+              )
+
               api_key = app_store_connect_api_key(
                 key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
                 issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
@@ -47,10 +57,11 @@ jobs:
                 in_house: false
               )
 
-              # Automatically create certificate and provisioning profile in Apple Developer Portal
+              # Automatically generate Distribution Certificate and App Store Profile
               get_certificates(
                 api_key: api_key,
-                type: "distribution"
+                type: "distribution",
+                keychain_path: "~/Library/Keychains/ci_keychain-db"
               )
               get_provisioning_profile(
                 api_key: api_key,
@@ -72,4 +83,4 @@ jobs:
           end
           EOF
 
-          bundle exec fastlane ios beta
+          fastlane ios beta
