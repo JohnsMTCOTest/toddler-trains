@@ -44,6 +44,16 @@ jobs:
           platform :ios do
             desc "Build and upload to TestFlight"
             lane :beta do
+              # Create and unlock a temporary keychain for code signing
+              create_keychain(
+                name: "ci_keychain",
+                password: "temporary_password",
+                default_keychain: true,
+                unlock: true,
+                timeout: 3600,
+                lock_when_sleeps: false
+              )
+
               api_key = app_store_connect_api_key(
                 key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
                 issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
@@ -51,7 +61,13 @@ jobs:
                 in_house: false
               )
 
-              # Download or generate the App Store distribution profile
+              # Automatically generate or download an Apple Distribution Certificate
+              get_certificates(
+                api_key: api_key,
+                keychain_path: "ci_keychain"
+              )
+
+              # Generate and download the App Store distribution profile
               get_provisioning_profile(
                 api_key: api_key,
                 app_identifier: "com.tannerjohnson.toddlertrains"
