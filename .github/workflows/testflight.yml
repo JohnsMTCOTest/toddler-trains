@@ -63,12 +63,14 @@ jobs:
                 in_house: false
               )
 
+              # Generate CSR and request Certificate via App Store Connect API
               get_certificates(
                 api_key: api_key,
                 keychain_path: File.expand_path("~/Library/Keychains/#{keychain_name}-db"),
                 keychain_password: keychain_password
               )
 
+              # Generate or download matching distribution provisioning profile
               get_provisioning_profile(
                 api_key: api_key,
                 app_identifier: "com.tannerjohnson.toddlertrains"
@@ -80,7 +82,6 @@ jobs:
                 project: "ToddlerTrains.xcodeproj",
                 scheme: "ToddlerTrains",
                 export_method: "app-store",
-                xcargs: "DEVELOPMENT_TEAM='#{ENV['APPLE_TEAM_ID']}' PROVISIONING_PROFILE_SPECIFIER='#{profile_name}'",
                 export_options: {
                   signingStyle: "manual",
                   teamID: ENV["APPLE_TEAM_ID"],
