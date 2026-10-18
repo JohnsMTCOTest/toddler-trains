@@ -1,6 +1,6 @@
 name: ToddlerTrains
 options:
-  bundleIdPrefix: com.trainapp
+  bundleIdPrefix: com.tannerjohnson
 targets:
   ToddlerTrains:
     type: application
@@ -11,6 +11,6 @@ targets:
     info:
       path: ToddlerTrains/Info.plist
     settings:
-      PRODUCT_BUNDLE_IDENTIFIER: com.trainapp.toddlertrains
+      PRODUCT_BUNDLE_IDENTIFIER: com.tannerjohnson.toddlertrains
       DEVELOPMENT_TEAM: ${APPLE_TEAM_ID}
       CODE_SIGN_STYLE: Manual
