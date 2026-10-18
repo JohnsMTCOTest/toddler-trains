@@ -9,13 +9,66 @@ jobs:
   deploy:
     runs-on: macos-14
     steps:
-      - name: Select Xcode 16
+      - name: Select Latest Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "^16.0"
+          xcode-version: "latest-stable"
 
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      - name: Generate App Icons
+        run: |
+          mkdir -p ToddlerTrains/Assets.xcassets/AppIcon.appiconset
+
+          # Generate placeholder icon using python & core graphics / sips
+          python3 -c "
+          import struct, zlib
+
+          def create_png(width, height, color):
+              raw_data = b''.join([b'\x00' + color * width for _ in range(height)])
+              def chunk(tag, data):
+                  return struct.pack('>I', len(data)) + tag + data + struct.pack('>I', zlib.crc32(tag + data) & 0xffffffff)
+              return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', width, height, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw_data)) + chunk(b'IEND', b'')
+
+          # Blue base icon
+          with open('base_icon.png', 'wb') as f:
+              f.write(create_png(1024, 1024, b'\x1E\x90\xFF'))
+          "
+
+          # Resize icons to exact required Apple resolutions
+          sips -z 120 120 base_icon.png --out ToddlerTrains/Assets.xcassets/AppIcon.appiconset/icon_120.png
+          sips -z 152 152 base_icon.png --out ToddlerTrains/Assets.xcassets/AppIcon.appiconset/icon_152.png
+          sips -z 1024 1024 base_icon.png --out ToddlerTrains/Assets.xcassets/AppIcon.appiconset/icon_1024.png
+
+          cat << 'EOF' > ToddlerTrains/Assets.xcassets/AppIcon.appiconset/Contents.json
+          {
+            "images" : [
+              {
+                "size" : "60x60",
+                "idiom" : "iphone",
+                "filename" : "icon_120.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "76x76",
+                "idiom" : "ipad",
+                "filename" : "icon_152.png",
+                "scale" : "2x"
+              },
+              {
+                "size" : "1024x1024",
+                "idiom" : "ios-marketing",
+                "filename" : "icon_1024.png",
+                "scale" : "1x"
+              }
+            ],
+            "info" : {
+              "version" : 1,
+              "author" : "xcode"
+            }
+          }
+          EOF
 
       - name: Install XcodeGen
         run: brew install xcodegen
@@ -63,14 +116,12 @@ jobs:
                 in_house: false
               )
 
-              # Fetch or create the Distribution Certificate and install in keychain
               get_certificates(
                 api_key: api_key,
                 keychain_path: File.expand_path("~/Library/Keychains/#{keychain_name}-db"),
                 keychain_password: keychain_password
               )
 
-              # Fetch or create the App Store Distribution Profile
               get_provisioning_profile(
                 api_key: api_key,
                 app_identifier: "com.tannerjohnson.toddlertrains"
@@ -78,7 +129,6 @@ jobs:
 
               profile_name = lane_context[SharedValues::SIGH_NAME]
 
-              # Configure project target with the exact signing identities and profile
               update_code_signing_settings(
                 path: "ToddlerTrains.xcodeproj",
                 use_automatic_signing: false,
@@ -88,7 +138,6 @@ jobs:
                 bundle_identifier: "com.tannerjohnson.toddlertrains"
               )
 
-              # Build and archive
               build_app(
                 project: "ToddlerTrains.xcodeproj",
                 scheme: "ToddlerTrains",
@@ -102,7 +151,6 @@ jobs:
                 }
               )
 
-              # Deliver IPA to TestFlight
               upload_to_testflight(
                 api_key: api_key,
                 skip_waiting_for_build_processing: true
