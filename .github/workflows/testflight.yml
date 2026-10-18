@@ -8,9 +8,12 @@ on:
 jobs:
   deploy:
     runs-on: macos-14
-    env:
-      DEVELOPER_DIR: /Applications/Xcode_16.0.app/Contents/Developer
     steps:
+      - name: Select Xcode 16
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: "^16.0"
+
       - name: Verify Xcode Version
         run: xcodebuild -version
 
