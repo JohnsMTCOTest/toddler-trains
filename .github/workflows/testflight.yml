@@ -36,6 +36,7 @@ jobs:
         run: |
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+          export CI_KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
 
           mkdir -p fastlane
           cat << 'EOF' > fastlane/Fastfile
@@ -47,7 +48,7 @@ jobs:
               # Create and unlock a temporary keychain for code signing
               create_keychain(
                 name: "ci_keychain",
-                password: "temporary_password",
+                password: ENV["CI_KEYCHAIN_PASSWORD"],
                 default_keychain: true,
                 unlock: true,
                 timeout: 3600,
@@ -64,7 +65,8 @@ jobs:
               # Automatically generate or download an Apple Distribution Certificate
               get_certificates(
                 api_key: api_key,
-                keychain_path: File.expand_path("~/Library/Keychains/ci_keychain-db")
+                keychain_path: File.expand_path("~/Library/Keychains/ci_keychain-db"),
+                keychain_password: ENV["CI_KEYCHAIN_PASSWORD"]
               )
 
               # Generate and download the App Store distribution profile
@@ -73,14 +75,20 @@ jobs:
                 app_identifier: "com.tannerjohnson.toddlertrains"
               )
 
+              profile_name = lane_context[SharedValues::SIGH_NAME]
+
               # Build and archive
               build_app(
                 project: "ToddlerTrains.xcodeproj",
                 scheme: "ToddlerTrains",
                 export_method: "app-store",
+                xcargs: "PROVISIONING_PROFILE_SPECIFIER='#{profile_name}'",
                 export_options: {
-                  signingStyle: "automatic",
-                  teamID: ENV["APPLE_TEAM_ID"]
+                  signingStyle: "manual",
+                  teamID: ENV["APPLE_TEAM_ID"],
+                  provisioningProfiles: {
+                    "com.tannerjohnson.toddlertrains" => profile_name
+                  }
                 }
               )
 
