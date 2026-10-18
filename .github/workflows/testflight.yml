@@ -30,13 +30,24 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+          APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
+          APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           FASTLANE_SKIP_UPDATE_CHECK: "true"
           FASTLANE_HIDE_CHANGELOG: "true"
         run: |
+          if [[ -z "$APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64" || -z "$APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD" ]]; then
+            echo "::error::Configure APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64 and APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD repository secrets with a persistent Apple Distribution signing identity."
+            exit 1
+          fi
+
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
           export CI_KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
+          export APPLE_DISTRIBUTION_CERTIFICATE_PATH="$RUNNER_TEMP/distribution.p12"
+          trap 'rm -f "$APPLE_DISTRIBUTION_CERTIFICATE_PATH"' EXIT
+          printf '%s' "$APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64" | openssl base64 -d -A > "$APPLE_DISTRIBUTION_CERTIFICATE_PATH"
+          test -s "$APPLE_DISTRIBUTION_CERTIFICATE_PATH"
 
           mkdir -p fastlane
           cat << 'EOF' > fastlane/Fastfile
@@ -55,18 +66,18 @@ jobs:
                 lock_when_sleeps: false
               )
 
+              import_certificate(
+                certificate_path: ENV["APPLE_DISTRIBUTION_CERTIFICATE_PATH"],
+                certificate_password: ENV["APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD"],
+                keychain_path: File.expand_path("~/Library/Keychains/ci_keychain-db"),
+                keychain_password: ENV["CI_KEYCHAIN_PASSWORD"]
+              )
+
               api_key = app_store_connect_api_key(
                 key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
                 issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
                 key_filepath: "~/.appstoreconnect/private_keys/AuthKey_#{ENV['APP_STORE_CONNECT_KEY_ID']}.p8",
                 in_house: false
-              )
-
-              # Automatically generate or download an Apple Distribution Certificate
-              get_certificates(
-                api_key: api_key,
-                keychain_path: File.expand_path("~/Library/Keychains/ci_keychain-db"),
-                keychain_password: ENV["CI_KEYCHAIN_PASSWORD"]
               )
 
               # Generate and download the App Store distribution profile
