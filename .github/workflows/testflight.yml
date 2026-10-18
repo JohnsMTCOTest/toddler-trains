@@ -7,12 +7,15 @@ on:
 
 jobs:
   deploy:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
-      - name: Select Xcode 16
+      - name: Select Latest Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "^16.0"
+          xcode-version: "latest-stable"
+
+      - name: Verify Xcode Version
+        run: xcodebuild -version
 
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -21,7 +24,6 @@ jobs:
         run: |
           mkdir -p ToddlerTrains/Assets.xcassets/AppIcon.appiconset
 
-          # Create a 1024x1024 base blue PNG using python standard library
           python3 -c "
           import struct, zlib
 
@@ -35,7 +37,6 @@ jobs:
               f.write(create_png(1024, 1024, b'\x1E\x90\xFF'))
           "
 
-          # Render required resolutions for Apple's ingest validator
           sips -z 120 120 base_icon.png --out ToddlerTrains/Assets.xcassets/AppIcon.appiconset/icon_120.png
           sips -z 152 152 base_icon.png --out ToddlerTrains/Assets.xcassets/AppIcon.appiconset/icon_152.png
           sips -z 167 167 base_icon.png --out ToddlerTrains/Assets.xcassets/AppIcon.appiconset/icon_167.png
