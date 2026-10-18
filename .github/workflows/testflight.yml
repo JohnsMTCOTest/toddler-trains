@@ -30,24 +30,12 @@ jobs:
           APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
-          APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64 }}
-          APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           FASTLANE_SKIP_UPDATE_CHECK: "true"
           FASTLANE_HIDE_CHANGELOG: "true"
         run: |
-          if [[ -z "$APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64" || -z "$APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD" ]]; then
-            echo "::error::Configure APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64 and APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD repository secrets with a persistent Apple Distribution signing identity."
-            exit 1
-          fi
-
           mkdir -p ~/.appstoreconnect/private_keys
           echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
-          export CI_KEYCHAIN_PASSWORD="$(openssl rand -hex 32)"
-          export APPLE_DISTRIBUTION_CERTIFICATE_PATH="$RUNNER_TEMP/distribution.p12"
-          trap 'rm -f "$APPLE_DISTRIBUTION_CERTIFICATE_PATH"' EXIT
-          printf '%s' "$APPLE_DISTRIBUTION_CERTIFICATE_P12_BASE64" | openssl base64 -d -A > "$APPLE_DISTRIBUTION_CERTIFICATE_PATH"
-          test -s "$APPLE_DISTRIBUTION_CERTIFICATE_PATH"
 
           mkdir -p fastlane
           cat << 'EOF' > fastlane/Fastfile
@@ -56,21 +44,16 @@ jobs:
           platform :ios do
             desc "Build and upload to TestFlight"
             lane :beta do
-              # Create and unlock a temporary keychain for code signing
+              keychain_name = "ci_keychain"
+              keychain_password = "temporary_ci_password"
+
               create_keychain(
-                name: "ci_keychain",
-                password: ENV["CI_KEYCHAIN_PASSWORD"],
+                name: keychain_name,
+                password: keychain_password,
                 default_keychain: true,
                 unlock: true,
                 timeout: 3600,
                 lock_when_sleeps: false
-              )
-
-              import_certificate(
-                certificate_path: ENV["APPLE_DISTRIBUTION_CERTIFICATE_PATH"],
-                certificate_password: ENV["APPLE_DISTRIBUTION_CERTIFICATE_PASSWORD"],
-                keychain_path: File.expand_path("~/Library/Keychains/ci_keychain-db"),
-                keychain_password: ENV["CI_KEYCHAIN_PASSWORD"]
               )
 
               api_key = app_store_connect_api_key(
@@ -80,30 +63,31 @@ jobs:
                 in_house: false
               )
 
-              # Generate and download the App Store distribution profile
+              # Automatically create certificate and install paired private key into keychain
+              get_certificates(
+                api_key: api_key,
+                keychain_path: File.expand_path("~/Library/Keychains/#{keychain_name}-db"),
+                keychain_password: keychain_password
+              )
+
+              # Automatically create/download provisioning profile matching the new certificate
               get_provisioning_profile(
                 api_key: api_key,
                 app_identifier: "com.tannerjohnson.toddlertrains"
               )
 
-              profile_name = lane_context[SharedValues::SIGH_NAME]
-
-              # Build and archive
+              # Build signed release archive
               build_app(
                 project: "ToddlerTrains.xcodeproj",
                 scheme: "ToddlerTrains",
                 export_method: "app-store",
-                xcargs: "PROVISIONING_PROFILE_SPECIFIER='#{profile_name}'",
                 export_options: {
-                  signingStyle: "manual",
-                  teamID: ENV["APPLE_TEAM_ID"],
-                  provisioningProfiles: {
-                    "com.tannerjohnson.toddlertrains" => profile_name
-                  }
+                  signingStyle: "automatic",
+                  teamID: ENV["APPLE_TEAM_ID"]
                 }
               )
 
-              # Upload binary
+              # Deliver IPA to TestFlight
               upload_to_testflight(
                 api_key: api_key,
                 skip_waiting_for_build_processing: true
