@@ -51,11 +51,10 @@ jobs:
                 in_house: false
               )
 
-              # Create profile if missing and download it
+              # Download or generate the App Store distribution profile
               get_provisioning_profile(
                 api_key: api_key,
-                app_identifier: "com.tannerjohnson.toddlertrains",
-                type: "app-store"
+                app_identifier: "com.tannerjohnson.toddlertrains"
               )
 
               # Build and archive
