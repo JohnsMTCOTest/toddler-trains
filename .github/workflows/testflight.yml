@@ -90,6 +90,7 @@ jobs:
       - name: Generate Xcode Project
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          BUILD_NUMBER: ${{ github.run_number }}
         run: xcodegen generate
 
       - name: Deploy to TestFlight via Fastlane
@@ -98,6 +99,7 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          BUILD_NUMBER: ${{ github.run_number }}
           FASTLANE_SKIP_UPDATE_CHECK: "true"
           FASTLANE_HIDE_CHANGELOG: "true"
         run: |
