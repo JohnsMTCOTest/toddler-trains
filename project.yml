@@ -1,6 +1,7 @@
 name: ToddlerTrains
 options:
   bundleIdPrefix: com.tannerjohnson
+  xcodeVersion: "16.0"
 targets:
   ToddlerTrains:
     type: application
@@ -12,7 +13,7 @@ targets:
       path: ToddlerTrains/Info.plist
       properties:
         CFBundleShortVersionString: "1.0.0"
-        CFBundleVersion: "1"
+        CFBundleVersion: ${BUILD_NUMBER}
         CFBundleIconName: "AppIcon"
         UIRequiresFullScreen: true
         UILaunchScreen: {}
