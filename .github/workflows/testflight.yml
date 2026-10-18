@@ -64,7 +64,7 @@ jobs:
               # Automatically generate or download an Apple Distribution Certificate
               get_certificates(
                 api_key: api_key,
-                keychain_path: "ci_keychain"
+                keychain_path: File.expand_path("~/Library/Keychains/ci_keychain-db")
               )
 
               # Generate and download the App Store distribution profile
