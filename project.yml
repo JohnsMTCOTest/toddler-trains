@@ -15,3 +15,4 @@ targets:
       PRODUCT_BUNDLE_IDENTIFIER: com.tannerjohnson.toddlertrains
       DEVELOPMENT_TEAM: ${APPLE_TEAM_ID}
       CODE_SIGN_STYLE: Manual
+      PROVISIONING_PROFILE_SPECIFIER: "com.tannerjohnson.toddlertrains AppStore"
