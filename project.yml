@@ -14,5 +14,4 @@ targets:
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: com.tannerjohnson.toddlertrains
       DEVELOPMENT_TEAM: ${APPLE_TEAM_ID}
-      CODE_SIGN_STYLE: Automatic
-      CODE_SIGN_IDENTITY: "Apple Distribution"
+      CODE_SIGN_STYLE: Manual
