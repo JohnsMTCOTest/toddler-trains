@@ -31,7 +31,12 @@ jobs:
           APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
           APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          FASTLANE_SKIP_UPDATE_CHECK: "true"
+          FASTLANE_HIDE_CHANGELOG: "true"
         run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          echo "$APP_STORE_CONNECT_PRIVATE_KEY" > ~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8
+
           mkdir -p fastlane
           cat << 'EOF' > fastlane/Fastfile
           default_platform(:ios)
@@ -39,42 +44,32 @@ jobs:
           platform :ios do
             desc "Build and upload to TestFlight"
             lane :beta do
-              # Create a temporary keychain for CI signing
-              create_keychain(
-                name: "ci_keychain",
-                password: "temporary_password",
-                default_keychain: true,
-                unlock: true,
-                timeout: 3600,
-                lock_when_sleeps: false
-              )
-
               api_key = app_store_connect_api_key(
                 key_id: ENV["APP_STORE_CONNECT_KEY_ID"],
                 issuer_id: ENV["APP_STORE_CONNECT_ISSUER_ID"],
-                key_content: ENV["APP_STORE_CONNECT_PRIVATE_KEY"],
-                is_key_content_base64: false,
+                key_filepath: "~/.appstoreconnect/private_keys/AuthKey_#{ENV['APP_STORE_CONNECT_KEY_ID']}.p8",
                 in_house: false
               )
 
-              # Automatically generate Distribution Certificate and App Store Profile
-              get_certificates(
-                api_key: api_key,
-                type: "distribution",
-                keychain_path: "~/Library/Keychains/ci_keychain-db"
-              )
+              # Create profile if missing and download it
               get_provisioning_profile(
                 api_key: api_key,
                 app_identifier: "com.tannerjohnson.toddlertrains",
                 type: "app-store"
               )
 
+              # Build and archive
               build_app(
                 project: "ToddlerTrains.xcodeproj",
                 scheme: "ToddlerTrains",
-                export_method: "app-store"
+                export_method: "app-store",
+                export_options: {
+                  signingStyle: "automatic",
+                  teamID: ENV["APPLE_TEAM_ID"]
+                }
               )
 
+              # Upload binary
               upload_to_testflight(
                 api_key: api_key,
                 skip_waiting_for_build_processing: true
@@ -83,4 +78,4 @@ jobs:
           end
           EOF
 
-          fastlane ios beta
+          fastlane ios beta --verbose
