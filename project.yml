@@ -1,0 +1,16 @@
+name: ToddlerTrains
+options:
+  bundleIdPrefix: com.trainapp
+targets:
+  ToddlerTrains:
+    type: application
+    platform: iOS
+    deploymentTarget: "15.0"
+    sources:
+      - path: ToddlerTrains
+    info:
+      path: ToddlerTrains/Info.plist
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: com.trainapp.toddlertrains
+      DEVELOPMENT_TEAM: ${APPLE_TEAM_ID}
+      CODE_SIGN_STYLE: Manual
