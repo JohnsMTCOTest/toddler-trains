@@ -63,14 +63,14 @@ jobs:
                 in_house: false
               )
 
-              # Generate CSR and request Certificate via App Store Connect API
+              # Fetch or create the Distribution Certificate and install in keychain
               get_certificates(
                 api_key: api_key,
                 keychain_path: File.expand_path("~/Library/Keychains/#{keychain_name}-db"),
                 keychain_password: keychain_password
               )
 
-              # Generate or download matching distribution provisioning profile
+              # Fetch or create the App Store Distribution Profile
               get_provisioning_profile(
                 api_key: api_key,
                 app_identifier: "com.tannerjohnson.toddlertrains"
@@ -78,6 +78,17 @@ jobs:
 
               profile_name = lane_context[SharedValues::SIGH_NAME]
 
+              # Configure project target with the exact signing identities and profile
+              update_code_signing_settings(
+                path: "ToddlerTrains.xcodeproj",
+                use_automatic_signing: false,
+                team_id: ENV["APPLE_TEAM_ID"],
+                code_sign_identity: "Apple Distribution",
+                profile_name: profile_name,
+                bundle_identifier: "com.tannerjohnson.toddlertrains"
+              )
+
+              # Build and archive
               build_app(
                 project: "ToddlerTrains.xcodeproj",
                 scheme: "ToddlerTrains",
@@ -91,6 +102,7 @@ jobs:
                 }
               )
 
+              # Deliver IPA to TestFlight
               upload_to_testflight(
                 api_key: api_key,
                 skip_waiting_for_build_processing: true
