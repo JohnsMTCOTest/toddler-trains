@@ -1,6 +1,7 @@
 name: ToddlerTrains
 options:
   bundleIdPrefix: com.tannerjohnson
+  xcodeVersion: "15.0"
 targets:
   ToddlerTrains:
     type: application
